@@ -5,6 +5,8 @@ from typing import Dict, List, Optional, Any
 import json
 import requests
 import sys
+import os
+import subprocess
 from urllib.parse import urlsplit
 
     
@@ -48,8 +50,17 @@ def _get_fb_access_token() -> str:
                 print(f"Using Facebook token from command line arguments")
             else:
                 raise Exception("--fb-token argument provided but no token value followed it")
+        elif os.environ.get("FB_ACCESS_TOKEN"):
+            FB_ACCESS_TOKEN = os.environ["FB_ACCESS_TOKEN"]
         else:
-            raise Exception("Facebook token must be provided via '--fb-token' command line argument")
+            # Sigma: read-only system-user token kept in the macOS Keychain, never on the command line
+            try:
+                FB_ACCESS_TOKEN = subprocess.run(
+                    ["security", "find-generic-password", "-s", "SIGMA_META_ADS_READ_TOKEN", "-w"],
+                    capture_output=True, text=True, check=True,
+                ).stdout.strip()
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                raise Exception("No token: set Keychain item SIGMA_META_ADS_READ_TOKEN, FB_ACCESS_TOKEN, or pass --fb-token")
 
     return FB_ACCESS_TOKEN
 
